@@ -7,47 +7,35 @@ import org.apache.commons.csv.CSVRecord;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class CsvReader {
+
     public static Double[] readDoubleColumn(String filePath, String columnName) throws IOException {
-        // Configuracion del formato CSV
+
         CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
+                .setDelimiter(';')
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .setIgnoreSurroundingSpaces(true)
-                .setDelimiter(';')
                 .build();
 
-        // Lista para almacenar los valores Double
         List<Double> doubleList = new ArrayList<>();
 
         try (Reader reader = new FileReader(filePath);
              CSVParser csvParser = new CSVParser(reader, csvFormat)) {
 
             for (CSVRecord csvRecord : csvParser) {
-                String value = csvRecord.get(columnName);
+                if (csvRecord.isMapped(columnName)) {
+                    String value = csvRecord.get(columnName);
+                    String cleanedValue = value.replace(',', '.').trim();
 
-                // Reemplazar comas por puntos y eliminar espacios
-                String cleanedValue = value.replace(',', '.').trim();
-
-                if (!cleanedValue.isEmpty()) {
-                    try {
-                        Double doubleValue = Double.parseDouble(cleanedValue);
-                        doubleList.add(doubleValue);
-                    } catch (NumberFormatException e) {
-                        // Intentar parsear como fecha en formato ISO 8601
+                    if (!cleanedValue.isEmpty()) {
                         try {
-                            LocalDateTime date = LocalDateTime.parse(value);
-                            double timestamp = (double) date.toEpochSecond(ZoneOffset.UTC);
-                            doubleList.add(timestamp);
-                        } catch (DateTimeParseException ex) {
-                            System.err.println("Ignorando valor inválido: '" + value + "'");
+                            doubleList.add(Double.parseDouble(cleanedValue));
+                        } catch (NumberFormatException e) {
+                            System.err.println("Ignorando valor no numérico en fila " + csvRecord.getRecordNumber() + ": " + value);
                         }
                     }
                 }
