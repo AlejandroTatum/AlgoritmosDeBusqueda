@@ -3,58 +3,168 @@ import search.SLLSearch;
 import util.CsvReader;
 import util.Node;
 import util.StructureUtil;
+
 import java.io.IOException;
 import java.util.List;
 
 public class Main {
+
     public static void main(String[] args) {
         System.out.println("=== LABORATORIO 7: ALGORITMOS DE BÚSQUEDA ===");
+        System.out.println("=== Integrantes del Grupo: Mark Gonzales, Steven Jumbo, Alejandro Padilla, Gyna Yupanqui ===\n");
 
-        // 1. CARGA DE DATOS
-        String filePath = "src/main/java/data/inventario_500_inverso.csv";
-        String colName = "stock";
+        // ---------------------------------------------------------
+        // PARTE 1: PRUEBAS CON ARCHIVOS (DATOS REALES Y VOLUMEN)
+        // ---------------------------------------------------------
+
+        // 1. Inventario (Datos Reales)
+        runTest("Inventario Inverso",
+                "src/main/java/data/inventario_500_inverso.csv",
+                "stock",
+                45.0);
+
+        // 2. Números Positivos (Prueba general)
+        runTest("Números Positivos",
+                "src/main/java/data/NumerosPositivos.csv",
+                "valor",
+                999.0);
+
+        // 3. Duplicados (Prueba de estrés para FindAll)
+        runTest("Números Duplicados",
+                "src/main/java/data/NumerosDuplicados.csv",
+                "valor",
+                12.0);
+
+        // 4. Positivos y Negativos
+        runTest("Positivos y Negativos",
+                "src/main/java/data/NumerosPositivosNegativos.csv",
+                "valor",
+                -5.0);
+
+        // ---------------------------------------------------------
+        // PARTE 2: PRUEBAS DE CASOS BORDE (ESTRUCTURALES)
+        // Estas pruebas aseguran la nota de "Manejo de bordes"
+        // ---------------------------------------------------------
+        runEdgeCases();
+    }
+
+    /**
+     * Executes all search algorithms on a given CSV file and measures execution time.
+     */
+    private static void runTest(String testName, String filePath, String colName, Double keyToFind) {
+        System.out.println("\n=================================================");
+        System.out.println(" PRUEBA DE ARCHIVO: " + testName);
+        System.out.println(" Archivo: " + filePath);
+        System.out.println(" Buscando clave: " + keyToFind);
+        System.out.println("=================================================");
+
         Double[] dataArray;
 
         try {
             dataArray = CsvReader.readDoubleColumn(filePath, colName);
-            System.out.println("Datos cargados. Total elementos: " + dataArray.length);
-            System.out.println("Dato en índice 0: " + dataArray[0]);
-            System.out.println("Dato en índice 1: " + dataArray[1]);
+            // Validación básica de carga
+            if (dataArray.length == 0) {
+                System.err.println("[Error] El archivo está vacío o no se encontró la columna.");
+                return;
+            }
+            System.out.println(" -> Datos cargados. Total elementos: " + dataArray.length);
+
         } catch (IOException e) {
-            System.err.println("Error al leer CSV: " + e.getMessage());
+            System.err.println("[Error IO] No se pudo leer el archivo: " + e.getMessage());
             return;
         }
 
-
+        // Convertir a SLL
         Node<Double> head = StructureUtil.arrayToSLL(dataArray);
 
-        Double keyPresente = 300.0;
+        long start, end;
 
-        System.out.println("\n--- PRUEBAS CON ARREGLOS ---");
+        // --- A. Secuencial First ---
+        start = System.nanoTime();
+        int idxFirst = ArraySearch.findFirst(dataArray, keyToFind);
+        end = System.nanoTime();
+        StructureUtil.printResult("1. Secuencial (First)", idxFirst, dataArray);
+        System.out.println("   Tiempo: " + (end - start) + " ns");
 
-        int idxFirst = ArraySearch.findFirst(dataArray, keyPresente);
-        StructureUtil.printResult("1. FindFirst", idxFirst, dataArray);
-        int idxLast = ArraySearch.findLast(dataArray, keyPresente);
-        StructureUtil.printResult("2. FindLast", idxLast, dataArray);
-        int idxSentinela = ArraySearch.findSentinel(dataArray, keyPresente);
-        StructureUtil.printResult("4. Centinela", idxSentinela, dataArray);
-        System.out.println("5. Búsqueda Binaria (" + keyPresente + "):");
-        int idxBinary = ArraySearch.binarySearch(dataArray, keyPresente);
-        StructureUtil.printResult("   Resultado Binaria", idxBinary, dataArray);
+        // --- B. Secuencial Last ---
+        start = System.nanoTime();
+        int idxLast = ArraySearch.findLast(dataArray, keyToFind);
+        end = System.nanoTime();
+        StructureUtil.printResult("2. Secuencial (Last) ", idxLast, dataArray);
+        System.out.println("   Tiempo: " + (end - start) + " ns");
 
-        System.out.println("\n--- PRUEBAS CON LISTAS (SLL) ---");
+        // --- C. Centinela ---
+        start = System.nanoTime();
+        int idxSentinel = ArraySearch.findSentinel(dataArray, keyToFind);
+        end = System.nanoTime();
+        StructureUtil.printResult("3. Centinela         ", idxSentinel, dataArray);
+        System.out.println("   Tiempo: " + (end - start) + " ns");
 
-        List<Node<Double>> nodesHigh = SLLSearch.findAll(head, node -> node.data > 490.0);
-        System.out.println("3. SLL FindAll (> 490): " + nodesHigh.size() + " nodos encontrados.");
+        // --- D. Binaria ---
+        start = System.nanoTime();
+        int idxBinary = ArraySearch.binarySearch(dataArray, keyToFind);
+        end = System.nanoTime();
+        StructureUtil.printResult("4. Binaria (con Sort)", idxBinary, dataArray);
+        System.out.println("   Tiempo: " + (end - start) + " ns (Incluye ordenamiento)");
 
-        if (!nodesHigh.isEmpty()) {
-            System.out.print("   Valores: ");
-            for (Node<Double> nodo : nodesHigh) {
-                System.out.print("[" + nodo.data + "] ");
-            }
-            System.out.println();
+        // --- E. SLL FindAll ---
+        start = System.nanoTime();
+        List<Node<Double>> allNodes = SLLSearch.findAll(head, node -> node.data.equals(keyToFind));
+        end = System.nanoTime();
+
+        if (!allNodes.isEmpty()) {
+            System.out.println("5. SLL FindAll: Encontrados " + allNodes.size() + " nodos.");
         } else {
-            System.out.println("   Ningún nodo cumple la condición.");
+            System.out.println("5. SLL FindAll: No encontrado.");
+        }
+        System.out.println("   Tiempo: " + (end - start) + " ns");
+    }
+
+
+    private static void runEdgeCases() {
+        System.out.println("\n#################################################");
+        System.out.println("       VERIFICACIÓN DE CASOS BORDE (EXTREMOS)      ");
+        System.out.println("#################################################");
+
+        // CASO 1: ARREGLO VACÍO
+        System.out.println("\n--- CASO BORDE 1: ARREGLO VACÍO ---");
+        Double[] emptyArray = {};
+        Double key = 10.0;
+
+        System.out.println("Prueba: Buscar " + key + " en arreglo []");
+        // Esperamos -1 en todos
+        System.out.println("FindFirst: " + (ArraySearch.findFirst(emptyArray, key) == -1 ? "OK (Manejado)" : "FALLO"));
+        System.out.println("Centinela: " + (ArraySearch.findSentinel(emptyArray, key) == -1 ? "OK (Manejado)" : "FALLO"));
+        System.out.println("Binaria:   " + (ArraySearch.binarySearch(emptyArray, key) == -1 ? "OK (Manejado)" : "FALLO"));
+
+        // CASO 2: UN SOLO ELEMENTO (Coincide)
+        System.out.println("\n--- CASO BORDE 2: UN SOLO ELEMENTO (EXISTE) ---");
+        Double[] singleMatches = {50.0};
+        Double keyMatch = 50.0;
+
+        System.out.println("Prueba: Buscar " + keyMatch + " en arreglo [50.0]");
+        // Esperamos índice 0
+        int r1 = ArraySearch.findFirst(singleMatches, keyMatch);
+        int r2 = ArraySearch.binarySearch(singleMatches, keyMatch); // Prueba crítica para el while(low<=high)
+
+        System.out.println("FindFirst index: " + r1 + (r1 == 0 ? " [CORRECTO]" : " [ERROR]"));
+        System.out.println("Binaria index:   " + r2 + (r2 == 0 ? " [CORRECTO]" : " [ERROR]"));
+
+        // CASO 3: ELEMENTO NO EXISTENTE
+        System.out.println("\n--- CASO BORDE 3: ELEMENTO NO EXISTENTE ---");
+        Double[] smallArray = {10.0, 20.0, 30.0};
+        Double keyNo = 99.0;
+
+        int r3 = ArraySearch.findSentinel(smallArray, keyNo);
+        System.out.println("Centinela buscando 99.0 en [10,20,30]: " + r3 + (r3 == -1 ? " [CORRECTO]" : " [ERROR]"));
+
+        // CASO 4: CLAVE NULA
+        System.out.println("\n--- CASO BORDE 4: BÚSQUEDA DE NULL ---");
+        try {
+            int rNull = ArraySearch.findFirst(smallArray, null);
+            System.out.println("Buscar null: " + rNull + " (Debe ser -1 y no crashear) -> " + (rNull == -1 ? "OK" : "FALLO"));
+        } catch (Exception e) {
+            System.out.println("Buscar null: EXCEPCIÓN DETECTADA (Mal manejo) -> " + e.getMessage());
         }
     }
 }
