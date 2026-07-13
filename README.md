@@ -68,8 +68,8 @@ El proyecto incluye Maven Wrapper, por lo que no es necesario instalar Maven glo
 ### Clonar el repositorio
 
 ```bash
-git clone https://github.com/AlejandroTatum/AlgoritmosDeBusqueda.git
-cd AlgoritmosDeBusqueda
+git clone https://github.com/AlejandroTatum/search-algorithms-java.git
+cd search-algorithms-java
 ```
 
 ### Compilar
